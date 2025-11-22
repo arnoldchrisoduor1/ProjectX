@@ -1,5 +1,6 @@
-import pdfParse from "pdf-parse";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { PDFParse } from 'pdf-parse';
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+
 
 export interface ChunckMetadata {
     pageNumber?: number;
@@ -17,7 +18,8 @@ async function fetchAndParsePDF(fileUrl: string) {
     const response = await fetch(fileUrl);
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    return await pdfParse(buffer);
+    const parser = new PDFParse({ data: buffer });
+    const pdfData = await parser.getInfo({ parsePageInfo: true });
 }
 
 // EXTRACTING THE CHAPTER/SECTION STRUCTURE FROM TEXT
