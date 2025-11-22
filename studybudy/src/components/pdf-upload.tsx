@@ -24,6 +24,7 @@ export default function PDFUpload({ onUploadComplete }: PDFUploadProps) {
     if (file) {
       setSelectedFile(file);
       setError(null);
+      console.log("File has been successfully accepted");
     }
   }, []);
 
@@ -53,6 +54,7 @@ export default function PDFUpload({ onUploadComplete }: PDFUploadProps) {
       setUploading(true);
       setProgress(10);
       setError(null);
+      console.log("Attempting to upload file");
 
       // Create form data
       const formData = new FormData();
@@ -66,6 +68,8 @@ export default function PDFUpload({ onUploadComplete }: PDFUploadProps) {
 
       if (!uploadResponse.ok) {
         throw new Error("Failed to upload file");
+      } else {
+        console.log("Uploaded successfully!")
       }
 
       const { documentId, fileUrl } = await uploadResponse.json();
@@ -73,12 +77,15 @@ export default function PDFUpload({ onUploadComplete }: PDFUploadProps) {
       setUploading(false);
       setProcessing(true);
 
+      console.log("Attempting to process PDF, chunking and embeddings");
       // Process PDF (chunking, embeddings)
       const processResponse = await fetch("/api/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ documentId, fileUrl }),
       });
+
+      console.log("PDF successfully processed");
 
       if (!processResponse.ok) {
         throw new Error("Failed to process PDF");
@@ -114,6 +121,8 @@ export default function PDFUpload({ onUploadComplete }: PDFUploadProps) {
       if (onUploadComplete) {
         onUploadComplete(documentId);
       }
+
+      console.log("SUCCESS: Documents has been successfully processed and uploaded!!");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
       setUploading(false);

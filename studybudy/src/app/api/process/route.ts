@@ -5,6 +5,16 @@ import { documents, documentChunks } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { processAndChunkPDF } from "@/lib/pdf/chunker";
 import { generateEmbeddings, storeToPinecone } from "@/lib/vectordb/pinecone";
+import path from "path";
+import process from "process";
+import { pathToFileURL } from "url";
+import { GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
+
+const workerPathAbsolute = path.join(
+    process.cwd(), 
+    'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
+);
+GlobalWorkerOptions.workerSrc = pathToFileURL(workerPathAbsolute).toString();
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -16,7 +26,7 @@ export async function POST(request: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const { userId } = auth();
+        const { userId } = await auth();
         if (!userId) {
           controller.enqueue(
             encoder.encode(
@@ -29,6 +39,7 @@ export async function POST(request: NextRequest) {
 
         const body = await request.json();
         const { documentId, fileUrl } = body;
+        console.log("Attempting to fetch file from:", fileUrl);
 
         // VERIFYING USER OWNS THIS
         const [document] = await db

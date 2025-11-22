@@ -5,16 +5,30 @@ import { db } from "@/lib/db";
 import { documents, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { PDFParse } from 'pdf-parse';
+import { GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
+
+import path from "path";
+import process from "process";
+import { pathToFileURL } from "url"
+
 
 export const runtime = "nodejs";
-export const maxDuration = 300; // 5 minutes for large PDFs
+export const maxDuration = 300; // 5 minutes for processing large PDFs.
+
+const workerPathAbsolute = path.join(
+  process.cwd(), 
+  'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
+);
+
+GlobalWorkerOptions.workerSrc = pathToFileURL(workerPathAbsolute).toString();
 
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        console.log("Could not Authenticate user");
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get or create user in database
@@ -40,6 +54,11 @@ export async function POST(request: NextRequest) {
     // Parse form data
     const formData = await request.formData();
     const file = formData.get("file") as File;
+
+    const originalFileName = file.name;
+    const sanitizedFileName = originalFileName
+    .replace(/[,]/g, '') // Remove all commas
+    .replace(/\s+/g, '_');
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -72,7 +91,7 @@ export async function POST(request: NextRequest) {
     await parser.destroy();
 
     // Upload to Vercel Blob (or your preferred storage)
-    const blob = await put(file.name, buffer, {
+    const blob = await put(sanitizedFileName, buffer, {
       access: "public",
       contentType: "application/pdf",
     });

@@ -1,6 +1,17 @@
 import { PDFParse } from 'pdf-parse';
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 
+// import path from "path";
+// import process from "process";
+// import { pathToFileURL } from "url";
+// import { GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
+
+// const workerPathAbsolute = path.join(
+//   process.cwd(), 
+//   'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
+// );
+
+// GlobalWorkerOptions.workerSrc = pathToFileURL(workerPathAbsolute).toString();
 
 export interface ChunckMetadata {
     pageNumber?: number;
@@ -13,13 +24,49 @@ export interface Chunk {
     metadata: ChunckMetadata;
 }
 
+// Define the expected return type
+export interface PdfParseResult {
+    text: string;
+    numpages?: number; 
+    info: any;
+}
+
 // Fetching and parse PDF from URL.
-async function fetchAndParsePDF(fileUrl: string) {
-    const response = await fetch(fileUrl);
+async function fetchAndParsePDF(fileUrl: string): Promise<PdfParseResult> {
+    const url = new URL(fileUrl); // creating url object from the string.
+    const pathname = url.pathname;
+    const safepath = encodeURI(decodeURI(pathname));
+    const safeFileUrl = url.origin + safepath;
+
+    const response = await fetch(safeFileUrl);
+    if (!response.ok) {
+        throw new Error(`Failed to download PDF: ${response.statusText}`);
+    }
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+
+    console.log(`Download Buffer Size: ${buffer.length} bytes`);
+
+    if (buffer.length < 100) {
+         throw new Error("Downloaded file is too small or empty.");
+    }
+    
+    // Instantiate the parser
     const parser = new PDFParse({ data: buffer });
-    const pdfData = await parser.getInfo({ parsePageInfo: true });
+
+    const pdfResult = await parser.promise;
+
+    // Ensure the result has the properties we need
+    if (!pdfResult || typeof pdfResult.text !== 'string') {
+        throw new Error("PDF parsing failed to extract text.");
+    }
+    
+    // Return the full result object
+    return {
+        text: pdfResult.text,
+        numpages: pdfResult.numpages,
+        info: pdfResult.info,
+    };
 }
 
 // EXTRACTING THE CHAPTER/SECTION STRUCTURE FROM TEXT
@@ -57,6 +104,8 @@ export async function processAndChunkPDF(fileUrl: string): Promise<Chunk[]> {
   // 1. Parse PDF
   const pdfData = await fetchAndParsePDF(fileUrl);
   const fullText = pdfData.text;
+
+  console.log("The full text: ", fullText);
 
   // 2. Extract structure (chapters, sections)
   const { sections } = extractStructure(fullText);
