@@ -1,6 +1,6 @@
 import { Pinecone } from "@pinecone-database/pinecone";
 import OpenAI from "openai";
-import { Chunck } from "@/lib/pdf/chunker";
+import { Chunk } from "../pdf/chunker";
 
 // Now initializing the pinecone.
 const pinecone = new Pinecone({
